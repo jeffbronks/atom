@@ -468,7 +468,7 @@ class TextEditorComponent {
     const startRow = this.getRenderedStartRow()
     const endRow = this.getRenderedEndRow()
     const rowsPerTile = this.getRowsPerTile()
-    const tileHeight = this.getLineHeight() * rowsPerTile
+    const tileHeight = this.pixelPositionBeforeBlocksForRow(endRow) - pixelPositionBeforeBlocksForRow(startRow)
     const tileWidth = this.getScrollWidth()
 
     const displayLayer = this.props.model.displayLayer
@@ -485,7 +485,7 @@ class TextEditorComponent {
         measuredContent: this.measuredContent,
         height: tileHeight,
         width: tileWidth,
-        top: this.topPixelPositionForRow(tileStartRow),
+        top: this.pixelPositionBeforeBlocksForRow(tileStartRow),
         lineHeight: this.getLineHeight(),
         renderedStartRow: startRow,
         tileStartRow, tileEndRow,
@@ -928,8 +928,8 @@ class TextEditorComponent {
       decorations = []
       this.decorationsToRender.customGutter.set(decoration.gutterName, decorations)
     }
-    const top = this.pixelTopForRow(screenRange.start.row)
-    const height = this.pixelTopForRow(screenRange.end.row + 1) - top
+    const top = this.pixelPositionAfterBlocksForRow(screenRange.start.row)
+    const height = this.pixelPositionBeforeBlocksForRow(screenRange.end.row + 1) - top
 
     decorations.push({
       className: decoration.class,
@@ -950,9 +950,9 @@ class TextEditorComponent {
       for (let i = 0, length = highlights.length; i < length; i++) {
         const highlight = highlights[i]
         const {start, end} = highlight.screenRange
-        highlight.startPixelTop = this.pixelTopForRow(start.row)
+        highlight.startPixelTop = this.pixelPositionAfterBlocksForRow(start.row)
         highlight.startPixelLeft = this.pixelLeftForRowAndColumn(start.row, start.column)
-        highlight.endPixelTop = this.pixelTopForRow(end.row + 1)
+        highlight.endPixelTop = this.pixelPositionBeforeBlocksForRow(end.row + 1)
         highlight.endPixelLeft = this.pixelLeftForRowAndColumn(end.row, end.column)
       }
       this.decorationsToRender.highlights.set(tileRow, highlights)
@@ -967,7 +967,7 @@ class TextEditorComponent {
       const cursor = this.decorationsToMeasure.cursors[i]
       const {row, column} = cursor.screenPosition
 
-      const pixelTop = this.pixelTopForRow(row)
+      const pixelTop = this.pixelPositionAfterBlocksForRow(row)
       const pixelLeft = this.pixelLeftForRowAndColumn(row, column)
       const pixelRight = (cursor.columnWidth === 0)
         ? pixelLeft
@@ -991,7 +991,7 @@ class TextEditorComponent {
       const decoration = this.decorationsToRender.overlays[i]
       const {element, screenPosition, avoidOverflow} = decoration
       const {row, column} = screenPosition
-      let wrapperTop = contentClientRect.top + this.pixelTopForRow(row) + this.getLineHeight()
+      let wrapperTop = contentClientRect.top + this.pixelPositionAfterBlocksForRow(row) + this.getLineHeight()
       let wrapperLeft = contentClientRect.left + this.pixelLeftForRowAndColumn(row, column)
 
       if (avoidOverflow !== false) {
@@ -1507,8 +1507,8 @@ class TextEditorComponent {
   autoscrollVertically () {
     const {screenRange, options} = this.pendingAutoscroll
 
-    const screenRangeTop = this.pixelTopForRow(screenRange.start.row)
-    const screenRangeBottom = this.pixelTopForRow(screenRange.end.row) + this.getLineHeight()
+    const screenRangeTop = this.pixelPositionAfterBlocksForRow(screenRange.start.row)
+    const screenRangeBottom = this.pixelPositionAfterBlocksForRow(screenRange.end.row) + this.getLineHeight()
     const verticalScrollMargin = this.getVerticalAutoscrollMargin()
 
     this.requestHorizontalMeasurement(screenRange.start.row, screenRange.start.column)
@@ -1747,8 +1747,16 @@ class TextEditorComponent {
     }
   }
 
-  pixelTopForRow (row) {
-    return row * this.getLineHeight()
+  rowForPixelPosition (pixelPosition) {
+    return this.lineTopIndex.rowForPixelPosition(pixelPosition)
+  }
+
+  pixelPositionBeforeBlocksForRow (row) {
+    return this.lineTopIndex.pixelPositionBeforeBlocksForRow(row)
+  }
+
+  pixelPositionAfterBlocksForRow (row) {
+    return this.lineTopIndex.pixelPositionAfterBlocksForRow(row)
   }
 
   pixelLeftForRowAndColumn (row, column) {
@@ -1890,10 +1898,6 @@ class TextEditorComponent {
     }
   }
 
-  getScrollContainerHeightInLines () {
-    return Math.ceil(this.getScrollContainerHeight() / this.getLineHeight())
-  }
-
   getScrollContainerClientWidth () {
     if (this.isVerticalScrollbarVisible()) {
       return this.getScrollContainerWidth() - this.getVerticalScrollbarWidth()
@@ -2022,7 +2026,7 @@ class TextEditorComponent {
   getLastVisibleRow () {
     return Math.min(
       this.props.model.getApproximateScreenLineCount() - 1,
-      this.getFirstVisibleRow() + this.getScrollContainerHeightInLines()
+      this.rowForPixelPosition(this.getScrollBottom())
     )
   }
 
@@ -2092,10 +2096,6 @@ class TextEditorComponent {
   populateVisibleRowRange () {
     const endRow = this.getFirstTileStartRow() + this.getVisibleTileCount() * this.getRowsPerTile()
     this.props.model.displayLayer.populateSpatialIndexIfNeeded(Infinity, endRow)
-  }
-
-  topPixelPositionForRow (row) {
-    return row * this.getLineHeight()
   }
 
   getNextUpdatePromise () {
