@@ -141,8 +141,7 @@ module.exports = class Dock {
       this.wrapperElement.classList.add('atom-dock-content-wrapper', this.location)
       this.resizeHandle = new DockResizeHandle({
         location: this.location,
-        onResizeStart: this.handleResizeHandleDragStart,
-        toggle: this.toggle.bind(this)
+        onResizeStart: this.handleResizeHandleDragStart
       })
       this.toggleButton = new DockToggleButton({
         onDragEnter: this.handleToggleButtonDragEnter.bind(this),
@@ -609,12 +608,10 @@ module.exports = class Dock {
 class DockResizeHandle {
   constructor (props) {
     this.handleMouseDown = this.handleMouseDown.bind(this)
-    this.handleClick = this.handleClick.bind(this)
 
     this.element = document.createElement('div')
     this.element.classList.add('atom-dock-resize-handle', props.location)
     this.element.addEventListener('mousedown', this.handleMouseDown)
-    this.element.addEventListener('click', this.handleClick)
     this.props = props
     this.update(props)
   }
@@ -642,13 +639,6 @@ class DockResizeHandle {
 
   destroy () {
     this.element.removeEventListener('mousedown', this.handleMouseDown)
-    this.element.removeEventListener('click', this.handleClick)
-  }
-
-  handleClick () {
-    if (!this.props.dockIsOpen) {
-      this.props.toggle()
-    }
   }
 
   handleMouseDown () {
